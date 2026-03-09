@@ -60,20 +60,19 @@ struct AddSessionView: View {
         let noteContent = templateType?.templateContent
 
         if isRecurring {
-            let calendar = Calendar.current
-            let weekInterval = recurrenceFrequency == .weekly ? 1 : 2
-            var currentDate = date
-
-            while currentDate <= recurrenceEndDate {
+            let dates = SessionScheduler.recurringDates(
+                from: date,
+                until: recurrenceEndDate,
+                frequency: recurrenceFrequency
+            )
+            for sessionDate in dates {
                 let session = Session(
                     client: client,
-                    date: currentDate,
+                    date: sessionDate,
                     noteContent: noteContent,
                     templateType: templateType
                 )
                 modelContext.insert(session)
-                guard let next = calendar.date(byAdding: .weekOfYear, value: weekInterval, to: currentDate) else { break }
-                currentDate = next
             }
         } else {
             let session = Session(

@@ -11,6 +11,7 @@ struct SessionDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isRecording = false
+    @State private var showingMicPermissionAlert = false
 
     @State private var audioRecorder = AudioRecorderService()
 
@@ -77,6 +78,23 @@ struct SessionDetailView: View {
                 if let newValue {
                     loadImage(from: newValue)
                 }
+            }
+            .onChange(of: audioRecorder.permissionDenied) { _, denied in
+                if denied {
+                    isRecording = false
+                    showingMicPermissionAlert = true
+                    audioRecorder.permissionDenied = false
+                }
+            }
+            .alert("Microphone Access", isPresented: $showingMicPermissionAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Praxis needs microphone access to record voice notes. Enable it in Settings.")
             }
 
             Section("Reminders") {

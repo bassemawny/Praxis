@@ -89,18 +89,10 @@ struct ImageViewerView: View {
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
-    @State private var dragOffset: CGSize = .zero
-
-    private var currentOffset: CGSize {
-        CGSize(
-            width: offset.width + dragOffset.width,
-            height: offset.height + dragOffset.height
-        )
-    }
+    @State private var dismissOffset: CGFloat = 0
 
     private var opacity: Double {
-        guard scale <= 1.0 else { return 1.0 }
-        let progress = abs(dragOffset.height) / 300.0
+        let progress = abs(dismissOffset) / 300.0
         return max(1.0 - progress, 0.3)
     }
 
@@ -113,9 +105,9 @@ struct ImageViewerView: View {
                     .resizable()
                     .scaledToFit()
                     .scaleEffect(scale)
-                    .offset(currentOffset)
-                    .gesture(magnification)
-                    .gesture(drag)
+                    .offset(x: offset.width, y: offset.height + dismissOffset)
+                    .simultaneousGesture(pinchToZoom)
+                    .simultaneousGesture(panOrDismiss)
                     .onTapGesture(count: 2) {
                         withAnimation(.spring) {
                             if scale > 1.0 {
@@ -151,12 +143,12 @@ struct ImageViewerView: View {
         }
     }
 
-    private var magnification: some Gesture {
+    private var pinchToZoom: some Gesture {
         MagnifyGesture()
             .onChanged { value in
                 scale = max(lastScale * value.magnification, 0.5)
             }
-            .onEnded { value in
+            .onEnded { _ in
                 lastScale = scale
                 if scale < 1.0 {
                     withAnimation(.spring) {
@@ -168,21 +160,28 @@ struct ImageViewerView: View {
             }
     }
 
-    private var drag: some Gesture {
-        DragGesture()
+    private var panOrDismiss: some Gesture {
+        DragGesture(minimumDistance: 10)
             .onChanged { value in
-                dragOffset = value.translation
+                if scale > 1.0 {
+                    // Pan when zoomed in
+                    offset = CGSize(
+                        width: offset.width + value.translation.width * 0.05,
+                        height: offset.height + value.translation.height * 0.05
+                    )
+                } else {
+                    // Swipe to dismiss when at 1x
+                    dismissOffset = value.translation.height
+                }
             }
             .onEnded { value in
-                // If zoomed out and dragged down enough, dismiss
-                if scale <= 1.0 && abs(value.translation.height) > 150 {
+                if scale > 1.0 {
+                    // keep current offset
+                } else if abs(value.translation.height) > 150 {
                     dismiss()
                 } else {
-                    if scale > 1.0 {
-                        offset = currentOffset
-                    }
                     withAnimation(.spring) {
-                        dragOffset = .zero
+                        dismissOffset = 0
                     }
                 }
             }

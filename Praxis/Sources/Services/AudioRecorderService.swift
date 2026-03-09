@@ -6,8 +6,22 @@ import Observation
 final class AudioRecorderService {
     private var audioRecorder: AVAudioRecorder?
     private var recordingURL: URL?
+    var permissionDenied = false
 
     func startRecording() {
+        AVAudioApplication.requestRecordPermission { [weak self] granted in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard granted else {
+                    self.permissionDenied = true
+                    return
+                }
+                self.beginRecording()
+            }
+        }
+    }
+
+    private func beginRecording() {
         let session = AVAudioSession.sharedInstance()
 
         do {
